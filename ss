@@ -5,6 +5,13 @@ import io
 import traceback
 import re
 import copy
+import pandas as pd
+import numpy as np
+import json
+import ipyvuetify as v
+import ipywidgets as widgets
+import traitlets
+from datetime import datetime, timedelta, date, time, timezone
 
 # ==========================================
 # 📦 DEPENDENCY CHECK
@@ -19,13 +26,6 @@ except ImportError:
     print("ipyvuetify not found. Installing 1.9.4...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "ipyvuetify==1.9.4"])
 
-import pandas as pd
-import numpy as np
-import json
-import ipyvuetify as v
-import ipywidgets as widgets
-import traitlets
-from datetime import datetime, timedelta, date, time, timezone
 from seeq import spy
 
 # ==========================================
@@ -148,15 +148,6 @@ CHEMICAL_SIGNAL_IDS = {
              "Starch Defoamer": "0F0C982D-5A5C-FDF0-B14C-BE8F7065FAB7", "Sulfuric Acid": "0F0C982D-5A8B-6420-B3E7-E35BEBE4235C"}
 }
 
-# --- DUMMY BUDGET DATA ($/TON) ---
-DUMMY_BUDGETS = {
-    'PM12': { "Starch, Pearl": 53.95, "Fennopol K2801": 3.37, "Busan 1215": 3.19, "Bleach": 3.14, "Impress SB-973": 1.93, "Carta Red": 0.28, "Carta Yellow": 0.12 },
-    'PM14': { "Starch, Pearl": 49.38, "Busan 1215": 5.14, "Bleach": 4.82, "Impress SB973": 3.48, "Axfloc AF9620": 2.39, "Talc Compacted": 1.16, "Hercobond Plus 555": 0.89, "Fennotech 1802": 0.59, "Busperse 2036A": 0.06 },
-    'PM15': { "Starch": 39.75, "Hercobond 555": 8.81, "Bleach": 3.58, "Busan 1215": 3.53, "Fennopol K2801": 2.06, "Bufloc 5031": 1.57, "Zee 7635": 1.08, "ASA 150-D": 0.93, "Impress BP 400DS": 0.36, "Bubond 650": 0.30 },
-    'PM16': { "starch, pearl": 35.08, "Fennopol K2801": 3.54, "Bleach": 3.52, "Fennotech 1802": 2.50, "Presstige FB9080": 0.66, "Carta Red": 0.36, "Carta Yellow": 0.28, "Busan 1215": 0.30, "PAC": 0.14, "Superzymer 120x": 0.12 },
-    'PM17': { "Starch": 42.47, "Bleach": 3.86, "Fennopol K2801": 3.12, "Busan 1215": 2.73, "Fennotech 1802": 2.35, "FennoSize S C32": 1.50, "Fennofloc ZN29": 0.90, "Busperse 2036A": 0.38, "Carta Yellow": 0.15, "Carta Red": 0.08 },
-    'PM18': { "Starch": 39.97, "Busan 1215": 3.56, "Bleach": 3.54, "Fennopol k2801": 3.28, "ASA 150-D": 1.14, "Sulfuric Acid": 0.68, "DBNPA": 0.57, "Bubond 650": 0.34, "Busperse 2036A": 0.27, "Carta Yellow": 0.27, "Carta Red": 0.14 }
-}
 
 # --- GROUP BUDGET DATA ($/TON) ---
 GROUP_BUDGETS = {
@@ -166,22 +157,6 @@ GROUP_BUDGETS = {
     'PM16': { 'Starch': 0.00, 'Strength': 0.00, 'Sizing': 0.00, 'Drainage': 0.00, 'Biocide': 0.00, 'Cleaner': 0.00, 'Color': 0.00 },
     'PM17': { 'Starch': 0.00, 'Strength': 0.00, 'Sizing': 0.00, 'Drainage': 0.00, 'Biocide': 0.00, 'Cleaner': 0.00, 'Color': 0.00 },
     'PM18': { 'Starch': 0.00, 'Strength': 0.00, 'Sizing': 0.00, 'Drainage': 0.00, 'Biocide': 0.00, 'Cleaner': 0.00, 'Color': 0.00, 'Defoamer': 0.00 }
-}
-
-# --- EMBEDDED PM15 BASELINES FROM JSON ---
-PM15_BASELINES = {
-    "ASA 150-D": {"25MED": 0.1513269436, "25PS": 1.1002565119, "26MDX": 0.4567598077, "26MED": 0.0344939545, "30MED": 0.1168304989, "30PS": 1.4329422779, "33MED": 0.2674962621, "33PS": 1.3356982806, "35PS": 1.4574146741, "36MED": 0.1612681399, "40PS": 1.3070062696, "56LIN": 1.2903775039},
-    "Bleach": {"25MED": 13.1281158127, "25PS": 7.0811630785, "26MDX": 13.959015269, "26MED": 7.7820266156, "30MED": 7.8334572117, "30PS": 9.3077584778, "33MED": 13.2461604753, "33PS": 8.6718984407, "35PS": 12.2149526907, "36MED": 9.2584297395, "40PS": 8.701349959, "56LIN": 8.5060393391},
-    "Bubond 650": {"25MED": 0.0936971913, "25PS": 0.6792907448, "26MDX": 0.294314284, "26MED": 0.0215246401, "30MED": 0.0716821972, "30PS": 0.9018074305, "33MED": 0.1680287284, "33PS": 0.839828077, "35PS": 0.9539941314, "36MED": 0.1012150012, "40PS": 0.8252019913, "56LIN": 0.8174203001},
-    "Bufloc 5031": {"25MED": 1.76299052, "25PS": 0.9152135741, "26MDX": 1.5805208801, "26MED": 1.1021015118, "30MED": 1.1072077171, "30PS": 1.1393894111, "33MED": 1.6602638354, "33PS": 1.1350173878, "35PS": 1.3786166508, "36MED": 1.052127871, "40PS": 1.0185145574, "56LIN": 0.9900623332},
-    "Busan 1215": {"25MED": 6.6673265458, "25PS": 3.4999740511, "26MDX": 7.5121374764, "26MED": 4.1268340774, "30MED": 4.0570011376, "30PS": 4.7567572796, "33MED": 6.7233159755, "33PS": 4.3636870204, "35PS": 6.7770857365, "36MED": 4.658860511, "40PS": 4.4501297768, "56LIN": 4.3714512594},
-    "Carta Red": {"25MED": 0.0056132031, "25PS": 0.1851511452, "26MDX": 0.0, "26MED": 0.0, "30MED": 0.0013166892, "30PS": 0.0777896959, "33MED": 0.0033617653, "33PS": 0.0508954161, "35PS": 0.0, "36MED": 0.0132778423, "40PS": 0.0631266664, "56LIN": 0.0416013392},
-    "Carta Yellow": {"25MED": 0.0044204989, "25PS": 0.1837992474, "26MDX": 0.0, "26MED": 0.0, "30MED": 0.0012422542, "30PS": 0.0608182268, "33MED": 0.0014428354, "33PS": 0.0179525389, "35PS": 0.0, "36MED": 0.0127473639, "40PS": 0.0304908414, "56LIN": 0.0327816371},
-    "Fennopol K2801": {"25MED": 1.287508547, "25PS": 0.6744430064, "26MDX": 1.1179794155, "26MED": 0.8007826456, "30MED": 0.778900635, "30PS": 0.8471662309, "33MED": 1.1698744166, "33PS": 0.7585396993, "35PS": 0.9524842198, "36MED": 0.7581771098, "40PS": 0.7346362223, "56LIN": 0.7030090522},
-    "Hercobond 555": {"25MED": 170.7148975238, "25PS": 77.4124842968, "26MDX": 243.000635658, "26MED": 27.436775023, "30MED": 158.7861024247, "30PS": 297.7433663159, "33MED": 317.5876819643, "33PS": 282.4773370738, "35PS": 290.4062305195, "36MED": 138.0818792396, "40PS": 190.2465513178, "56LIN": 148.7135695235},
-    "Impress BP 400DS": {"25MED": 0.11348768, "25PS": 0.9938036871, "26MDX": 0.0252528721, "26MED": 0.0570736874, "30MED": 0.0958176336, "30PS": 0.9060045108, "33MED": 0.165095595, "33PS": 0.8938300201, "35PS": 1.0112110328, "36MED": 0.1169487167, "40PS": 0.8604506465, "56LIN": 0.7934603527},
-    "Starch": {"25MED": 76.6479248631, "25PS": 40.1454702823, "26MDX": 57.4121256714, "26MED": 39.5458622175, "30MED": 45.9181033395, "30PS": 47.7401878733, "33MED": 77.9596121508, "33PS": 97.0266559975, "35PS": 98.4681621189, "36MED": 92.6703605662, "40PS": 80.1534463455, "56LIN": 64.7336744016},
-    "Zee 7635": {"25MED": 2.961646483, "25PS": 2.2236659451, "26MDX": 0.9907992617, "26MED": 1.3770559141, "30MED": 0.13799993, "30PS": 0.1928689425, "33MED": 0.2022778802, "33PS": 0.1143313824, "35PS": 0.0, "36MED": 0.0, "40PS": 0.0, "56LIN": 0.0}
 }
 
 # ==========================================
@@ -289,7 +264,7 @@ def analyze_historical_patterns(start_date, end_date, mill_config):
         )
         if capsules.empty or 'Value' not in capsules.columns: return None, None
         
-        capsules['Grade'] = capsules['Value'].apply(standardize_grade) # Updated
+        capsules['Grade'] = capsules['Value'].apply(standardize_grade)
         capsules.dropna(subset=['Grade'], inplace=True)
         
         capsules['Duration'] = (capsules['Capsule End'] - capsules['Capsule Start']).dt.total_seconds() / 3600
@@ -318,19 +293,15 @@ class ForecastEngine:
         self.baselines_data = {}
         self.chemical_prices = {}
 
-        # 1. Initialize with Embedded Baselines (Primary Source)
-        self.baselines_data['PM15'] = PM15_BASELINES
-
-        # 2. Try to load additional/overwrite from file (Secondary)
         try:
             if os.path.exists(baselines_file):
                 with open(baselines_file, 'r') as f: 
                     raw_data = json.load(f)
+                    self.baselines_data = {}
                     
                     first_key = next(iter(raw_data)) if raw_data else ''
                     
                     if first_key in ALL_MILL_CONFIGS:
-                        # Original Structure: { "PM15": { "Starch": ... } }
                         for mill, chems in raw_data.items():
                             self.baselines_data[mill] = {}
                             for chem, grades in chems.items():
@@ -340,19 +311,15 @@ class ForecastEngine:
                                     if norm_grade:
                                         self.baselines_data[mill][chem][norm_grade] = val
                     else:
-                        # New Structure (Flat): { "Starch": { ... } } -> Assign to PM15
                         mill = 'PM15'
-                        # Use setdefault to preserve embedded if logic overlaps, 
-                        # but typically file should update/extend embedded
-                        if mill not in self.baselines_data: self.baselines_data[mill] = {}
-                        
+                        self.baselines_data[mill] = {}
                         for chem, grades in raw_data.items():
                             self.baselines_data[mill][chem] = {}
                             for grade, val in grades.items():
                                 norm_grade = standardize_grade(grade)
                                 if norm_grade:
                                     self.baselines_data[mill][chem][norm_grade] = val
-            
+                        
             if os.path.exists(prices_file):
                 with open(prices_file, 'r') as f: self.chemical_prices = json.load(f)
         except: pass
@@ -410,10 +377,6 @@ class ForecastEngine:
             return 0.0, {}
 
     def calculate_actual_usage_by_grade(self, mill, start_date, end_date):
-        """
-        Calculates the actual usage of all chemicals split by Grade.
-        Returns a dictionary: { ChemicalName: { GradeName: TotalUsageLbs } }
-        """
         if mill not in ALL_MILL_CONFIGS: return {}
         mill_config = ALL_MILL_CONFIGS[mill]
         cond_id = mill_config.get('GRADE_RUN_CONDITION_ID')
@@ -421,7 +384,6 @@ class ForecastEngine:
         
         if not cond_id or not chem_ids: return {}
 
-        # 1. Pull Grade Capsules
         try:
             capsules_df = spy.pull(
                 items=spy.search({'ID': cond_id}, quiet=True),
@@ -433,11 +395,9 @@ class ForecastEngine:
 
         if capsules_df.empty: return {}
         
-        # Standardize Grade Names in Capsules
         capsules_df['Grade'] = capsules_df['Value'].apply(standardize_grade)
         capsules_df.dropna(subset=['Grade'], inplace=True)
 
-        # 2. Pull Chemical Data (Grid 1h to match existing logic assumption)
         items = []
         for name, cid in chem_ids.items():
             items.append({'ID': cid, 'Name': name})
@@ -455,17 +415,13 @@ class ForecastEngine:
 
         if chem_df.empty: return {}
 
-        # 3. Intersect Chemical Data with Grade Capsules
         usage_map = {chem: {} for chem in chem_ids.keys()}
         
-        # Iterate capsules to slice chemical dataframe
         for _, cap in capsules_df.iterrows():
             cs = cap['Capsule Start']
             ce = cap['Capsule End']
             grade = cap['Grade']
             
-            # Slice the chemical dataframe
-            # Assumption: Index is sorted datetime
             slice_df = chem_df[cs:ce]
             
             if not slice_df.empty:
@@ -525,7 +481,6 @@ class ForecastEngine:
                         grade_breakdown[grade] = grade_breakdown.get(grade, 0.0) + tons
             
             self.actual_tonnage = total_tons
-            # Modified to return Tuple (total, breakdown)
             return total_tons, grade_breakdown
         except Exception as e:
             self.actual_tonnage = 0.0
@@ -548,7 +503,7 @@ class ForecastEngine:
             sd_ts = pd.Timestamp(start_date).normalize().replace(tzinfo=None)
             ed_ts = pd.Timestamp(end_date).normalize().replace(tzinfo=None)
             
-            mask = (df['Date'] >= sd_ts) & (df['Date'] < ed_ts) # Strict less than end date for actuals
+            mask = (df['Date'] >= sd_ts) & (df['Date'] <= ed_ts)
             filtered_df = df.loc[mask]
             
             if filtered_df.empty: return {}
@@ -575,9 +530,13 @@ class ForecastEngine:
     def generate_tonnage_forecast(self, mill, start_date, end_date, known_actuals=None):
         if mill not in ALL_MILL_CONFIGS: return {}
         
-        # Initialize with known actuals (merged Seeq + CSV)
         grade_tons_map = known_actuals.copy() if known_actuals else {}
         
+        if not grade_tons_map:
+             csv_data = self.get_grade_tons_from_csv(mill, start_date, end_date)
+             if csv_data:
+                 grade_tons_map = csv_data
+
         mill_config = ALL_MILL_CONFIGS[mill]
         mill_config['GRADE_ALIAS_MAPPING'] = GLOBAL_GRADE_ALIAS_MAPPING
         
@@ -591,8 +550,6 @@ class ForecastEngine:
             schedule_df['Tons'] = pd.to_numeric(schedule_df['Tons'], errors='coerce').fillna(0)
         except: return grade_tons_map
 
-        # Logic to determine start of schedule simulation
-        # If we have actuals, we assume they cover up to NOW.
         now_local = datetime.now(MILL_TZ).replace(tzinfo=None)
         
         if isinstance(start_date, date) and not isinstance(start_date, datetime):
@@ -605,11 +562,9 @@ class ForecastEngine:
         else:
             target_end = end_date.replace(tzinfo=None) if hasattr(end_date, 'replace') else end_date
 
-        # If known_actuals is provided (not None), imply start from Now/Max
-        if known_actuals is not None:
+        if grade_tons_map:
              current_day = max(start_dt, now_local)
         else:
-             # Explicit override: Force simulation from start_date
              current_day = start_dt
             
         downtime_df = load_and_parse_downtime(mill_config['DOWNTIME_FILE'], mill_config.get('TIMEZONE', timezone.utc))
@@ -738,7 +693,6 @@ app_bar = v.AppBar(
     ]
 )
 
-# --- 2. Config Card ---
 mill_selector = v.Select(
     label='Select Mill',
     items=MILL_OPTIONS,
@@ -785,27 +739,87 @@ config_card = v.Card(
     ]
 )
 
-# --- 3. Combined Results Card ---
-
-# Actuals Section (Top)
 actual_display = v.Html(tag='div', class_='text-h4 blue--text text-center', children=['---'])
-actual_cpt_display = v.Html(tag='div', class_='text-h4 blue--text text-center', children=['---']) # New widget
+actual_cpt_display = v.Html(tag='div', class_='text-h4 blue--text text-center', children=['---'])
 scope_display = v.Html(tag='div', class_='caption grey--text text-center', children=['Waiting for initialization...'])
 
 results_container = v.Container(class_='pa-0', fluid=True, children=[])
+forecast_rows_data = [] 
+forecast_group_headers = {} 
 
-# Store references to row widgets for calculation
-forecast_rows_data = [] # Stores individual chemical rows
-forecast_group_headers = {} # Stores group header widgets
-
-# Footer Components (Defined before layout)
 STATIC_BUDGET = 35.00
-
 budget_label = v.Html(tag='div', class_='text-caption grey--text', children=['TOTAL BUDGET:'])
 budget_value = v.Html(tag='div', class_='text-h5 font-weight-bold grey--text', children=[f"${STATIC_BUDGET:.2f} / Ton"])
-
 cpt_display = v.Html(tag='div', class_='text-h5 font-weight-bold grey--text', children=['---'])
 grand_total_display = v.Html(tag='div', class_='text-h4 success--text font-weight-bold', children=['---'])
+
+# ==========================================
+# --- MODAL UI DEFINITIONS ---
+# ==========================================
+
+# --- DATA: CALCULATED USAGE BASELINES (FROM JSON) ---
+PM15_BASELINES = {
+    "ASA 150-D": {
+        "25MED": 0.1513269436, "25PS": 1.1002565119, "26MDX": 0.4567598077, "26MED": 0.0344939545,
+        "30MED": 0.1168304989, "30PS": 1.4329422779, "33MED": 0.2674962621, "33PS": 1.3356982806,
+        "35PS": 1.4574146741, "36MED": 0.1612681399, "40PS": 1.3070062696, "56LIN": 1.2903775039
+    },
+    "Bleach": {
+        "25MED": 13.1281158127, "25PS": 7.0811630785, "26MDX": 13.959015269, "26MED": 7.7820266156,
+        "30MED": 7.8334572117, "30PS": 9.3077584778, "33MED": 13.2461604753, "33PS": 8.6718984407,
+        "35PS": 12.2149526907, "36MED": 9.2584297395, "40PS": 8.701349959, "56LIN": 8.5060393391
+    },
+    "Bubond 650": {
+        "25MED": 0.0936971913, "25PS": 0.6792907448, "26MDX": 0.294314284, "26MED": 0.0215246401,
+        "30MED": 0.0716821972, "30PS": 0.9018074305, "33MED": 0.1680287284, "33PS": 0.839828077,
+        "35PS": 0.9539941314, "36MED": 0.1012150012, "40PS": 0.8252019913, "56LIN": 0.8174203001
+    },
+    "Bufloc 5031": {
+        "25MED": 1.76299052, "25PS": 0.9152135741, "26MDX": 1.5805208801, "26MED": 1.1021015118,
+        "30MED": 1.1072077171, "30PS": 1.1393894111, "33MED": 1.6602638354, "33PS": 1.1350173878,
+        "35PS": 1.3786166508, "36MED": 1.052127871, "40PS": 1.0185145574, "56LIN": 0.9900623332
+    },
+    "Busan 1215": {
+        "25MED": 6.6673265458, "25PS": 3.4999740511, "26MDX": 7.5121374764, "26MED": 4.1268340774,
+        "30MED": 4.0570011376, "30PS": 4.7567572796, "33MED": 6.7233159755, "33PS": 4.3636870204,
+        "35PS": 6.7770857365, "36MED": 4.658860511, "40PS": 4.4501297768, "56LIN": 4.3714512594
+    },
+    "Carta Red": {
+        "25MED": 0.0056132031, "25PS": 0.1851511452, "26MDX": 0.0, "26MED": 0.0,
+        "30MED": 0.0013166892, "30PS": 0.0777896959, "33MED": 0.0033617653, "33PS": 0.0508954161,
+        "35PS": 0.0, "36MED": 0.0132778423, "40PS": 0.0631266664, "56LIN": 0.0416013392
+    },
+    "Carta Yellow": {
+        "25MED": 0.0044204989, "25PS": 0.1837992474, "26MDX": 0.0, "26MED": 0.0,
+        "30MED": 0.0012422542, "30PS": 0.0608182268, "33MED": 0.0014428354, "33PS": 0.0179525389,
+        "35PS": 0.0, "36MED": 0.0127473639, "40PS": 0.0304908414, "56LIN": 0.0327816371
+    },
+    "Fennopol K2801": {
+        "25MED": 1.287508547, "25PS": 0.6744430064, "26MDX": 1.1179794155, "26MED": 0.8007826456,
+        "30MED": 0.778900635, "30PS": 0.8471662309, "33MED": 1.1698744166, "33PS": 0.7585396993,
+        "35PS": 0.9524842198, "36MED": 0.7581771098, "40PS": 0.7346362223, "56LIN": 0.7030090522
+    },
+    "Hercobond 555": {
+        "25MED": 170.7148975238, "25PS": 77.4124842968, "26MDX": 243.000635658, "26MED": 27.436775023,
+        "30MED": 158.7861024247, "30PS": 297.7433663159, "33MED": 317.5876819643, "33PS": 282.4773370738,
+        "35PS": 290.4062305195, "36MED": 138.0818792396, "40PS": 190.2465513178, "56LIN": 148.7135695235
+    },
+    "Impress BP 400DS": {
+        "25MED": 0.11348768, "25PS": 0.9938036871, "26MDX": 0.0252528721, "26MED": 0.0570736874,
+        "30MED": 0.0958176336, "30PS": 0.9060045108, "33MED": 0.165095595, "33PS": 0.8938300201,
+        "35PS": 1.0112110328, "36MED": 0.1169487167, "40PS": 0.8604506465, "56LIN": 0.7934603527
+    },
+    "Starch": {
+        "25MED": 76.6479248631, "25PS": 40.1454702823, "26MDX": 57.4121256714, "26MED": 39.5458622175,
+        "30MED": 45.9181033395, "30PS": 47.7401878733, "33MED": 77.9596121508, "33PS": 97.0266559975,
+        "35PS": 98.4681621189, "36MED": 92.6703605662, "40PS": 80.1534463455, "56LIN": 64.7336744016
+    },
+    "Zee 7635": {
+        "25MED": 2.961646483, "25PS": 2.2236659451, "26MDX": 0.9907992617, "26MED": 1.3770559141,
+        "30MED": 0.13799993, "30PS": 0.1928689425, "33MED": 0.2022778802, "33PS": 0.1143313824,
+        "35PS": 0.0, "36MED": 0.0, "40PS": 0.0, "56LIN": 0.0
+    }
+}
 
 # --- MODAL FOR GRADE BREAKDOWN ---
 dialog_content = v.CardText(children=[])
@@ -820,7 +834,7 @@ dialog = v.Dialog(
                 'Grade Cost Per Ton Breakdown', v.Spacer(), 
                 close_btn
             ]),
-            v.CardTitle(class_='subtitle-2', children=[v.Html(tag='div', children=['Note: "Rate" shown below is weighted average of Actuals and Forecast. "Budget" is from fixed baselines.'])]),
+            v.CardTitle(class_='subtitle-2', children=[v.Html(tag='div', children=['Note: "Rate" shown below is calculated from Actual Chemical Usage per Grade. "Budget" is from fixed baselines.'])]),
             dialog_content,
             dialog_actions # Add actions here
         ])
@@ -832,264 +846,10 @@ def close_dialog(*args):
 
 close_btn.on_event('click', close_dialog)
 
-breakdown_title_display = v.Html(tag='div', class_='subtitle-2 mb-2 black--text', children=['USAGE BREAKDOWN'])
 
-# Reset Button
-btn_reset_charts = v.Btn(
-    small=True, 
-    color='red lighten-2', 
-    class_='white--text', 
-    children=[v.Icon(left=True, small=True, children=['mdi-restore']), 'Reset Values']
-)
-
-def on_reset_click(*args):
-    # Reset individual rows
-    for row in forecast_rows_data:
-        if 'reset_fn' in row:
-            row['reset_fn']()
-            
-    # Reset Group Header Budgets
-    mill = mill_selector.v_model
-    use_cost = switch_cost.v_model
-    
-    for group in CATEGORY_ORDER:
-        if group in forecast_group_headers:
-            header_widgets = forecast_group_headers[group]
-            
-            # Retrieve original default budget
-            default_budget = engine.get_group_budget_per_ton(mill, group)
-            if not use_cost: default_budget = 0.0
-            
-            # Reset widget value
-            header_widgets['w_budget'].v_model = float(f"{default_budget:.2f}")
-
-    recalculate_totals()
-
-btn_reset_charts.on_event('click', on_reset_click)
-
-combined_card = v.Card(
-    class_='mt-4 pa-4 combined-box-border', elevation=4,
-    children=[
-        dialog, # Include dialog component
-        v.CardTitle(class_='subtitle-1 black--text font-weight-bold', children=[
-            'Step 2: Usage & Forecast Report', 
-            v.Spacer(), 
-            btn_reset_charts
-        ]),
-        
-        # BOTTOM SECTION: FORECAST
-        breakdown_title_display,
-        results_container,
-        
-        v.Divider(class_='my-4'),
-        
-        # TOTAL PROJECTED (Row 1)
-        v.Row(
-            align='center', justify='end',
-            children=[
-                v.Col(cols='auto', children=[v.Html(tag='div', class_='text-h6 grey--text mr-2', children=['TOTAL PROJECTED:'])]),
-                v.Col(cols='auto', children=[grand_total_display])
-            ]
-        ),
-
-        # METRICS (Row 2)
-        v.Row(
-            align='center', justify='end', class_='mt-0 pt-0',
-            children=[
-                v.Col(cols='auto', children=[budget_label]),
-                v.Col(cols='auto', children=[budget_value]),
-                v.Col(cols='auto', class_='ml-6', children=[v.Html(tag='div', class_='text-caption grey--text', children=['ACTUAL METRIC/TON:'])]),
-                v.Col(cols='auto', children=[cpt_display]),
-            ]
-        )
-    ]
-)
-
-# ----------------------------------------------------------------------
-# ⚡ LOGIC & INTERACTIVITY
-# ----------------------------------------------------------------------
-
-# NOTE: on_mill_change for chemicals not needed as we show all chemicals now
-
-def on_mtd_click(widget, event, data):
-    now_mill_tz = datetime.now(MILL_TZ)
-    if now_mill_tz.day == 1 and now_mill_tz.hour < MILL_START_HOUR:
-        prev = now_mill_tz - timedelta(days=1)
-        start_d = date(prev.year, prev.month, 1)
-    else:
-        start_d = date(now_mill_tz.year, now_mill_tz.month, 1)
-    date_start.v_model = start_d.strftime('%Y-%m-%d')
-    date_end.v_model = now_mill_tz.strftime('%Y-%m-%d')
-
-btn_mtd.on_event('click', on_mtd_click)
-
-def on_eom_click(widget, event, data):
-    now_mill_tz = datetime.now(MILL_TZ)
-    start_d = date(now_mill_tz.year, now_mill_tz.month, 1)
-    next_month = now_mill_tz.replace(day=28) + timedelta(days=4)
-    end_d = next_month - timedelta(days=next_month.day)
-    
-    date_start.v_model = start_d.strftime('%Y-%m-%d')
-    date_end.v_model = end_d.strftime('%Y-%m-%d')
-
-btn_eom.on_event('click', on_eom_click)
-
-def on_prev_month_click(widget, event, data):
-    try:
-        curr_start = datetime.strptime(date_start.v_model, '%Y-%m-%d').date()
-        first_curr = curr_start.replace(day=1)
-        last_prev = first_curr - timedelta(days=1)
-        first_prev = last_prev.replace(day=1)
-        date_start.v_model = first_prev.strftime('%Y-%m-%d')
-        date_end.v_model = last_prev.strftime('%Y-%m-%d')
-    except: pass
-
-btn_prev_month.on_event('click', on_prev_month_click)
-
-def on_next_month_click(widget, event, data):
-    try:
-        curr_start = datetime.strptime(date_start.v_model, '%Y-%m-%d').date()
-        first_next = (curr_start.replace(day=28) + timedelta(days=4)).replace(day=1)
-        next_plus_one = (first_next.replace(day=28) + timedelta(days=4)).replace(day=1)
-        last_next = next_plus_one - timedelta(days=1)
-        date_start.v_model = first_next.strftime('%Y-%m-%d')
-        date_end.v_model = last_next.strftime('%Y-%m-%d')
-    except: pass
-
-# --- RECALCULATION LOGIC ---
-def recalculate_totals(*args):
-    total_forecast_cost = 0.0
-    total_budget_sum = 0.0
-    use_cost = switch_cost.v_model
-    mill = mill_selector.v_model  # Get current mill
-    
-    # Track totals per group to update headers
-    group_totals = {cat: 0.0 for cat in CATEGORY_ORDER}
-    
-    for row in forecast_rows_data:
-        try:
-            # Check row state for updated values
-            row_state = row.get('state', {})
-            val = row_state.get('numeric_total', 0.0)
-            group = row_state.get('group', 'Other')
-            
-            total_forecast_cost += val
-            
-            # Accumulate for group
-            if group in group_totals:
-                group_totals[group] += val
-            else:
-                group_totals.setdefault(group, 0.0)
-                group_totals[group] += val
-                
-        except: pass
-    
-    # Update Group Headers Variance AND Row Percentages
-    # We need the current production tons to convert total cost back to $/Ton for comparison
-    mode = getattr(engine, 'last_mode', 'Forecast')
-    forecast_prod_tons = getattr(engine, 'last_forecast_tons', 0.0)
-    
-    if mode == 'Actuals':
-        total_period_tons = engine.actual_tonnage
-    else:
-        # forecast_prod_tons already includes Actuals + Forecast, so we use it directly
-        total_period_tons = forecast_prod_tons
-    
-    # 1. Update individual row percentages based on group totals
-    for row in forecast_rows_data:
-        try:
-            row_state = row.get('state', {})
-            val = row_state.get('numeric_total', 0.0)
-            group = row_state.get('group', 'Other')
-            w_pct_widget = row.get('w_group_pct')
-            show_pct = row_state.get('show_group_pct', True) # Check flag
-            
-            if w_pct_widget:
-                if not show_pct:
-                    w_pct_widget.children = [""] # Hide if only one item in group
-                else:
-                    g_total = group_totals.get(group, 0.0)
-                    if g_total > 0:
-                        pct_val = (val / g_total) * 100
-                        w_pct_widget.children = [f"{pct_val:.1f}%"]
-                    else:
-                        w_pct_widget.children = ["0.0%"]
-        except: pass
-
-    # 2. Update Group Headers
-    for group in CATEGORY_ORDER: # Iterate through all groups
-        if group in forecast_group_headers:
-            header_widgets = forecast_group_headers[group]
-            
-            # Retrieve currently set budget from the widget (allows manual override)
-            try:
-                budget_val = float(header_widgets['w_budget'].v_model)
-            except:
-                budget_val = 0.0
-            
-            # Update stored value
-            header_widgets['budget_val'] = budget_val
-            
-            # Calculate Actual/Forecast Rate ($/Ton) for the group
-            total_val = group_totals.get(group, 0.0)
-            current_rate = 0.0
-            if total_period_tons > 0:
-                current_rate = total_val / total_period_tons
-                
-            # Update Rate Display (Update the model to reflect calculation)
-            # Only update if the difference is significant to avoid fighting user input cursor
-            try:
-                current_display = float(header_widgets['w_rate'].v_model)
-            except: current_display = -1.0
-            
-            if abs(current_display - current_rate) > 0.001:
-                header_widgets['w_rate'].v_model = float(f"{current_rate:.2f}")
-            
-            # Update Variance
-            variance = current_rate - budget_val
-            pct_variance = (variance / budget_val * 100) if budget_val > 0 else 0.0
-            
-            lbl_unit = "$" if use_cost else "Lbs"
-            var_color = "green--text" if variance <= 0 else "red--text"
-            fmt_var = f"{lbl_unit}{variance:,.2f}"
-            if variance > 0: fmt_var = f"+{fmt_var}"
-            
-            pct_color = "green--text" if pct_variance <= 0 else "red--text"
-            fmt_pct = f"{pct_variance:+.1f}%"
-            
-            header_widgets['w_var'].class_ = f'text-center {var_color}'
-            header_widgets['w_var'].children = [fmt_var]
-            
-            header_widgets['w_pct'].class_ = f'text-center {pct_color}'
-            header_widgets['w_pct'].children = [fmt_pct]
-            
-            # Add to total budget sum
-            if use_cost and (total_val > 0 or budget_val > 0):
-                 total_budget_sum += budget_val
-
-    # Grand Totals
-    if mode == 'Actuals':
-        grand_total = total_forecast_cost
-    else:
-        grand_total = total_forecast_cost 
-        
-    gt_fmt = f"${grand_total:,.2f}" if use_cost else f"{grand_total:,.2f} Lbs"
-    grand_total_display.children = [gt_fmt]
-
-    if total_period_tons > 0:
-        cpt = grand_total / total_period_tons
-    else:
-        cpt = 0.0
-        
-    cpt_fmt = f"${cpt:,.2f}" if use_cost else f"{cpt:,.2f}"
-    
-    # Update Total Budget Display (Sum of group budgets)
-    budget = total_budget_sum
-    budget_fmt = f"${budget:,.2f} / Ton" if use_cost else f"{budget:,.2f} / Ton"
-    budget_value.children = [budget_fmt]
-    
-    color_class = "green--text" if cpt <= budget else "red--text"
-    cpt_display.children = [v.Html(tag='span', class_=f"text-h5 font-weight-bold {color_class}", children=[f"{cpt_fmt} / Ton"])]
+# ==========================================
+# --- POPUP LOGIC FUNCTION ---
+# ==========================================
 
 def show_breakdown_modal(widget, event, data):
     try:
@@ -1147,12 +907,21 @@ def show_breakdown_modal(widget, event, data):
         for item in breakdown_data:
             grade = item['grade']
             
-            # MODIFIED LOGIC:
+            # --- MODIFIED LOGIC: LOOKUP BUDGET FROM JSON ---
             # We assume 'rate' is the Actual/Calculated Rate passed in.
-            # We assume 'budget_rate' is the baseline/budget rate passed in.
+            initial_rate = item.get('rate', 0.0) 
             
-            initial_rate = item.get('rate', 0.0) # This is the Actual Rate
-            grade_budget_rate = item.get('budget_rate', initial_rate) # Budget rate from baselines
+            # Look up budget from the static JSON baselines dictionary
+            # Note: Ensure grade is string for lookup
+            chem_baselines = PM15_BASELINES.get(chem_name, {})
+            baseline_value = chem_baselines.get(str(grade), None)
+
+            if baseline_value is not None:
+                # Use value from JSON
+                grade_budget_rate = baseline_value
+            else:
+                # Fallback to existing logic if not found in JSON
+                grade_budget_rate = item.get('budget_rate', initial_rate)
             
             grade_tons = item.get('tons', 0.0)
             
@@ -1303,7 +1072,269 @@ def show_breakdown_modal(widget, event, data):
         dialog.v_model = True
     except Exception as e:
         print(f"Error in show_breakdown_modal: {e}")
+        import traceback
         traceback.print_exc()
+
+breakdown_title_display = v.Html(tag='div', class_='subtitle-2 mb-2 black--text', children=['USAGE BREAKDOWN'])
+
+# Reset Button
+btn_reset_charts = v.Btn(
+    small=True, 
+    color='red lighten-2', 
+    class_='white--text', 
+    children=[v.Icon(left=True, small=True, children=['mdi-restore']), 'Reset Values']
+)
+
+def on_reset_click(*args):
+    # Reset individual rows
+    for row in forecast_rows_data:
+        if 'reset_fn' in row:
+            row['reset_fn']()
+            
+    # Reset Group Header Budgets
+    mill = mill_selector.v_model
+    use_cost = switch_cost.v_model
+    
+    for group in CATEGORY_ORDER:
+        if group in forecast_group_headers:
+            header_widgets = forecast_group_headers[group]
+            
+            # Retrieve original default budget
+            default_budget = engine.get_group_budget_per_ton(mill, group)
+            if not use_cost: default_budget = 0.0
+            
+            # Reset widget value
+            header_widgets['w_budget'].v_model = float(f"{default_budget:.2f}")
+
+    recalculate_totals()
+
+btn_reset_charts.on_event('click', on_reset_click)
+
+combined_card = v.Card(
+    class_='mt-4 pa-4 combined-box-border', elevation=4,
+    children=[
+        dialog, # Include dialog component
+        v.CardTitle(class_='subtitle-1 black--text font-weight-bold', children=[
+            'Step 2: Usage & Forecast Report', 
+            v.Spacer(), 
+            btn_reset_charts
+        ]),
+        
+        # BOTTOM SECTION: FORECAST
+        breakdown_title_display,
+        results_container,
+        
+        v.Divider(class_='my-4'),
+        
+        # TOTAL PROJECTED (Row 1)
+        v.Row(
+            align='center', justify='end',
+            children=[
+                v.Col(cols='auto', children=[v.Html(tag='div', class_='text-h6 grey--text mr-2', children=['TOTAL PROJECTED:'])]),
+                v.Col(cols='auto', children=[grand_total_display])
+            ]
+        ),
+
+        # METRICS (Row 2)
+        v.Row(
+            align='center', justify='end', class_='mt-0 pt-0',
+            children=[
+                v.Col(cols='auto', children=[budget_label]),
+                v.Col(cols='auto', children=[budget_value]),
+                v.Col(cols='auto', class_='ml-6', children=[v.Html(tag='div', class_='text-caption grey--text', children=['ACTUAL METRIC/TON:'])]),
+                v.Col(cols='auto', children=[cpt_display]),
+            ]
+        )
+    ]
+)
+
+# ----------------------------------------------------------------------
+# ⚡ LOGIC & INTERACTIVITY
+# ----------------------------------------------------------------------
+
+# NOTE: on_mill_change for chemicals not needed as we show all chemicals now
+
+def on_mtd_click(widget, event, data):
+    now_mill_tz = datetime.now(MILL_TZ)
+    if now_mill_tz.day == 1 and now_mill_tz.hour < MILL_START_HOUR:
+        prev = now_mill_tz - timedelta(days=1)
+        start_d = date(prev.year, prev.month, 1)
+    else:
+        start_d = date(now_mill_tz.year, now_mill_tz.month, 1)
+    date_start.v_model = start_d.strftime('%Y-%m-%d')
+    date_end.v_model = now_mill_tz.strftime('%Y-%m-%d')
+
+btn_mtd.on_event('click', on_mtd_click)
+
+def on_eom_click(widget, event, data):
+    now_mill_tz = datetime.now(MILL_TZ)
+    start_d = date(now_mill_tz.year, now_mill_tz.month, 1)
+    next_month = now_mill_tz.replace(day=28) + timedelta(days=4)
+    end_d = next_month - timedelta(days=next_month.day)
+    
+    date_start.v_model = start_d.strftime('%Y-%m-%d')
+    date_end.v_model = end_d.strftime('%Y-%m-%d')
+
+btn_eom.on_event('click', on_eom_click)
+
+def on_prev_month_click(widget, event, data):
+    try:
+        curr_start = datetime.strptime(date_start.v_model, '%Y-%m-%d').date()
+        first_curr = curr_start.replace(day=1)
+        last_prev = first_curr - timedelta(days=1)
+        first_prev = last_prev.replace(day=1)
+        date_start.v_model = first_prev.strftime('%Y-%m-%d')
+        date_end.v_model = last_prev.strftime('%Y-%m-%d')
+    except: pass
+
+btn_prev_month.on_event('click', on_prev_month_click)
+
+def on_next_month_click(widget, event, data):
+    try:
+        curr_start = datetime.strptime(date_start.v_model, '%Y-%m-%d').date()
+        first_next = (curr_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        next_plus_one = (first_next.replace(day=28) + timedelta(days=4)).replace(day=1)
+        last_next = next_plus_one - timedelta(days=1)
+        date_start.v_model = first_next.strftime('%Y-%m-%d')
+        date_end.v_model = last_next.strftime('%Y-%m-%d')
+    except: pass
+
+btn_next_month.on_event('click', on_next_month_click)
+
+# --- RECALCULATION LOGIC ---
+def recalculate_totals(*args):
+    total_forecast_cost = 0.0
+    total_budget_sum = 0.0
+    use_cost = switch_cost.v_model
+    mill = mill_selector.v_model  # Get current mill
+    
+    # Track totals per group to update headers
+    group_totals = {cat: 0.0 for cat in CATEGORY_ORDER}
+    
+    for row in forecast_rows_data:
+        try:
+            # Check row state for updated values
+            row_state = row.get('state', {})
+            val = row_state.get('numeric_total', 0.0)
+            group = row_state.get('group', 'Other')
+            
+            total_forecast_cost += val
+            
+            # Accumulate for group
+            if group in group_totals:
+                group_totals[group] += val
+            else:
+                group_totals.setdefault(group, 0.0)
+                group_totals[group] += val
+                
+        except: pass
+    
+    # Update Group Headers Variance AND Row Percentages
+    # We need the current production tons to convert total cost back to $/Ton for comparison
+    mode = getattr(engine, 'last_mode', 'Forecast')
+    forecast_prod_tons = getattr(engine, 'last_forecast_tons', 0.0)
+    
+    if mode == 'Actuals':
+        total_period_tons = engine.actual_tonnage
+    else:
+        # forecast_prod_tons already includes Actuals + Forecast, so we use it directly
+        total_period_tons = forecast_prod_tons
+    
+    # 1. Update individual row percentages based on group totals
+    for row in forecast_rows_data:
+        try:
+            row_state = row.get('state', {})
+            val = row_state.get('numeric_total', 0.0)
+            group = row_state.get('group', 'Other')
+            w_pct_widget = row.get('w_group_pct')
+            show_pct = row_state.get('show_group_pct', True) # Check flag
+            
+            if w_pct_widget:
+                if not show_pct:
+                    w_pct_widget.children = [""] # Hide if only one item in group
+                else:
+                    g_total = group_totals.get(group, 0.0)
+                    if g_total > 0:
+                        pct_val = (val / g_total) * 100
+                        w_pct_widget.children = [f"{pct_val:.1f}%"]
+                    else:
+                        w_pct_widget.children = ["0.0%"]
+        except: pass
+
+    # 2. Update Group Headers
+    for group in CATEGORY_ORDER: # Iterate through all groups
+        if group in forecast_group_headers:
+            header_widgets = forecast_group_headers[group]
+            
+            # Retrieve currently set budget from the widget (allows manual override)
+            try:
+                budget_val = float(header_widgets['w_budget'].v_model)
+            except:
+                budget_val = 0.0
+            
+            # Update stored value
+            header_widgets['budget_val'] = budget_val
+            
+            # Calculate Actual/Forecast Rate ($/Ton) for the group
+            total_val = group_totals.get(group, 0.0)
+            current_rate = 0.0
+            if total_period_tons > 0:
+                current_rate = total_val / total_period_tons
+                
+            # Update Rate Display (Update the model to reflect calculation)
+            # Only update if the difference is significant to avoid fighting user input cursor
+            try:
+                current_display = float(header_widgets['w_rate'].v_model)
+            except: current_display = -1.0
+            
+            if abs(current_display - current_rate) > 0.001:
+                header_widgets['w_rate'].v_model = float(f"{current_rate:.2f}")
+            
+            # Update Variance
+            variance = current_rate - budget_val
+            pct_variance = (variance / budget_val * 100) if budget_val > 0 else 0.0
+            
+            lbl_unit = "$" if use_cost else "Lbs"
+            var_color = "green--text" if variance <= 0 else "red--text"
+            fmt_var = f"{lbl_unit}{variance:,.2f}"
+            if variance > 0: fmt_var = f"+{fmt_var}"
+            
+            pct_color = "green--text" if pct_variance <= 0 else "red--text"
+            fmt_pct = f"{pct_variance:+.1f}%"
+            
+            header_widgets['w_var'].class_ = f'text-center {var_color}'
+            header_widgets['w_var'].children = [fmt_var]
+            
+            header_widgets['w_pct'].class_ = f'text-center {pct_color}'
+            header_widgets['w_pct'].children = [fmt_pct]
+            
+            # Add to total budget sum
+            if use_cost and (total_val > 0 or budget_val > 0):
+                 total_budget_sum += budget_val
+
+    # Grand Totals
+    if mode == 'Actuals':
+        grand_total = total_forecast_cost
+    else:
+        grand_total = total_forecast_cost 
+        
+    gt_fmt = f"${grand_total:,.2f}" if use_cost else f"{grand_total:,.2f} Lbs"
+    grand_total_display.children = [gt_fmt]
+
+    if total_period_tons > 0:
+        cpt = grand_total / total_period_tons
+    else:
+        cpt = 0.0
+        
+    cpt_fmt = f"${cpt:,.2f}" if use_cost else f"{cpt:,.2f}"
+    
+    # Update Total Budget Display (Sum of group budgets)
+    budget = total_budget_sum
+    budget_fmt = f"${budget:,.2f} / Ton" if use_cost else f"{budget:,.2f} / Ton"
+    budget_value.children = [budget_fmt]
+    
+    color_class = "green--text" if cpt <= budget else "red--text"
+    cpt_display.children = [v.Html(tag='span', class_=f"text-h5 font-weight-bold {color_class}", children=[f"{cpt_fmt} / Ton"])]
 
 def create_chemical_row(chem, total_qty, details, use_cost, group_name, tons_basis=0.0, context_label="Theoretical", show_group_pct=True, row_budget=0.0):
     # Widgets
@@ -1552,188 +1583,35 @@ def on_load_baseline(widget, event, data):
         d_end = datetime.strptime(date_end.v_model, '%Y-%m-%d').date()
         
         now_mill_tz = datetime.now(MILL_TZ)
-        today_date = now_mill_tz.date()
-
-        # -------------------------------------------------------------
-        # SPLIT TIME RANGE: ACTUALS vs FORECAST
-        # Actuals: From Start Date up to (End Date OR Yesterday, whichever is earlier)
-        # Forecast: From Today (07:00) onwards, if End Date >= Today
-        # -------------------------------------------------------------
-
-        # Actuals Start Time
-        dt_start_actuals = datetime.combine(d_start, time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
+        dt_start = datetime.combine(d_start, time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
         
-        # Determine Cutoff for Actuals vs Forecast
-        if d_end < today_date:
-            # Selected range is entirely in the past
-            # Actuals run until end of selection
-            dt_end_actuals = datetime.combine(d_end + timedelta(days=1), time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
-            dt_start_forecast = None
-            dt_end_forecast = None
-        else:
-            # Selected range includes Today or Future
-            # Actuals stop at Today 07:00 (Start of current shift)
-            dt_end_actuals = datetime.combine(today_date, time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
-            # Forecast starts at Today 07:00
-            dt_start_forecast = datetime.combine(today_date, time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
-            dt_end_forecast = datetime.combine(d_end + timedelta(days=1), time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
-
-        # -------------------------------------------------------------
-        # 1. GET ACTUALS (From Seeq + CSV)
-        # -------------------------------------------------------------
-        actual_tons_map = {}
-        actual_usage_map = {} # {Chem: {Grade: Lbs}}
-        actual_tons_total = 0.0
+        if d_end == now_mill_tz.date(): dt_end = now_mill_tz
+        else: dt_end = datetime.combine(d_end + timedelta(days=1), time(MILL_START_HOUR, 0), tzinfo=MILL_TZ)
+            
+        # 1. Load Metrics & Calculate Actuals (Top Section)
+        engine.load_historical_metrics(mill, 'All', use_cost)
+        actual_val, actual_breakdown_dict = engine.calculate_actual_usage(mill, 'All', dt_start, dt_end, use_cost)
         
-        if dt_end_actuals > dt_start_actuals:
-            # Get Tonnage from CSV (Actual Tons)
-            actual_tons_map = engine.get_grade_tons_from_csv(mill, dt_start_actuals, dt_end_actuals)
-            actual_tons_total = sum(actual_tons_map.values())
-            
-            # Get Chemical Usage from Seeq (Actual Usage)
-            actual_usage_map = engine.calculate_actual_usage_by_grade(mill, dt_start_actuals, dt_end_actuals)
-
-        # -------------------------------------------------------------
-        # 2. GET FORECAST (From Schedule Simulation)
-        # -------------------------------------------------------------
-        forecast_tons_map = {}
-        forecast_tons_total = 0.0
+        # 1b. Calculate Actual Tonnage - Now returns TUPLE (tons, grade_map)
+        actual_tons, seeq_grade_map = engine.calculate_actual_tonnage(mill, dt_start, dt_end)
         
-        if dt_start_forecast and dt_end_forecast > dt_start_forecast:
-             # Pass known_actuals={} to force simulation from start date (Today)
-             forecast_tons_map = engine.generate_tonnage_forecast(mill, dt_start_forecast, dt_end_forecast, known_actuals={})
-             forecast_tons_total = sum(forecast_tons_map.values())
-
-        # Combined Total Tons for Rate Calculation
-        total_production_tons = actual_tons_total + forecast_tons_total
-        engine.last_forecast_tons = total_production_tons
-
-        # Determine Mode for Display Label
-        is_forecast_mode = (forecast_tons_total > 0)
-        engine.last_mode = 'Forecast' if is_forecast_mode else 'Actuals'
+        # 1c. NEW: Calculate Actual Usage Split by Grade (from Seeq Signals)
+        actual_usage_by_grade = engine.calculate_actual_usage_by_grade(mill, dt_start, dt_end)
         
-        # -------------------------------------------------------------
-        # 3. MERGE & CALCULATE WEIGHTED RATES
-        # -------------------------------------------------------------
+        # NEW: Get Actual Grade Breakdown from CSV
+        csv_grade_map = engine.get_grade_tons_from_csv(mill, dt_start, dt_end)
         
-        # Load Baselines (Budget Rates) for Forecast Calculations
-        mill_baselines = engine.baselines_data.get(mill, {})
-        mill_chemicals = list(CHEMICAL_SIGNAL_IDS.get(mill, {}).keys())
-
-        # Structure: { Category: [ {name: Chem, data: {total: X, details: [...]}} ] }
-        all_chem_data = {cat: [] for cat in CATEGORY_ORDER}
-
-        for chem_name in mill_chemicals:
-            chem_key = next((k for k in mill_baselines.keys() if chem_name.lower() in k.lower() or k.lower() in chem_name.lower()), None)
-            
-            chem_total_metric = 0.0 # Total Cost or Lbs
-            chem_total_budget = 0.0 # Total Budget (Cost or Lbs)
-            chem_total_tons = 0.0   # Total Tons
-            chem_details = []
-            
-            # Identify all unique grades involved for this chemical (Actuals U Forecast)
-            # Actual grades for this chem are keys in actual_usage_map[chem_name] OR keys in actual_tons_map
-            # Forecast grades are keys in forecast_tons_map
-            
-            grades_in_actuals = set()
-            if chem_name in actual_usage_map:
-                grades_in_actuals.update(actual_usage_map[chem_name].keys())
-            grades_in_actuals.update(actual_tons_map.keys())
-            
-            all_grades = grades_in_actuals.union(set(forecast_tons_map.keys()))
-            
-            price = engine.get_price(mill, chem_name) if use_cost else 1.0
-
-            for grade in all_grades:
-                std_grade = standardize_grade(grade)
-                if not std_grade: continue
-                
-                # --- ACTUALS COMPONENT ---
-                act_tons = actual_tons_map.get(std_grade, 0.0)
-                # Usage from Seeq (Lbs)
-                act_usage_lbs = actual_usage_map.get(chem_name, {}).get(std_grade, 0.0)
-                
-                # If we have tons but no usage recorded, or usage but no tons, data might be messy.
-                # Rate = Usage / Tons
-                
-                # --- FORECAST COMPONENT ---
-                fcst_tons = forecast_tons_map.get(std_grade, 0.0)
-                
-                # Get Baseline Rate (Budget)
-                baseline_rate = 0.0
-                if chem_key: baseline_rate = mill_baselines[chem_key].get(std_grade, 0.0)
-                
-                # Calculate Forecast Usage based on Budget
-                # If use_cost is True, baseline_rate is Lbs/Ton? 
-                # Usually Baselines are in Usage/Ton (Lbs/Ton). 
-                # DUMMY_BUDGETS variable has $/Ton, but baselines_file usually has Usage.
-                # Assuming baselines_data is Usage/Ton (Lbs/Ton) based on logic structure.
-                
-                fcst_usage_lbs = fcst_tons * baseline_rate
-                
-                # --- COMBINE ---
-                total_grade_tons = act_tons + fcst_tons
-                total_grade_usage_lbs = act_usage_lbs + fcst_usage_lbs
-                
-                if total_grade_tons <= 0 and total_grade_usage_lbs <= 0: continue
-
-                # Calculate Composite Rate & Cost
-                if use_cost:
-                    # Metric = Dollars
-                    total_grade_metric = total_grade_usage_lbs * price
-                    composite_rate = total_grade_metric / total_grade_tons if total_grade_tons > 0 else 0.0
-                    budget_rate_metric = baseline_rate * price # Budget $/Ton
-                else:
-                    # Metric = Lbs
-                    total_grade_metric = total_grade_usage_lbs
-                    composite_rate = total_grade_metric / total_grade_tons if total_grade_tons > 0 else 0.0
-                    budget_rate_metric = baseline_rate # Budget Lbs/Ton
-
-                chem_total_metric += total_grade_metric
-                
-                # Calculate Budget Totals for Main Row
-                grade_budget_total = budget_rate_metric * total_grade_tons
-                chem_total_budget += grade_budget_total
-                chem_total_tons += total_grade_tons
-                
-                chem_details.append({
-                    'grade': std_grade,
-                    'rate': composite_rate,       # Weighted Average Actual + Forecast
-                    'budget_rate': budget_rate_metric, # Fixed Baseline
-                    'cost': total_grade_metric,
-                    'tons': total_grade_tons
-                })
-
-            # Add to Category List
-            if chem_total_metric > 0 or len(chem_details) > 0 or chem_total_budget > 0:
-                cat = get_chemical_category(chem_name)
-                all_chem_data[cat].append({
-                    'name': chem_name, 
-                    'data': {
-                        'total': chem_total_metric, 
-                        'budget_total': chem_total_budget,
-                        'tons': chem_total_tons,
-                        'details': chem_details
-                    }
-                })
-
-        # -------------------------------------------------------------
-        # 4. RENDER UI
-        # -------------------------------------------------------------
+        # MERGE: Combined Actuals for Details
+        # Use Seeq (Live) as base, Update with CSV (Official) if available
+        combined_actual_grades = seeq_grade_map.copy()
+        combined_actual_grades.update(csv_grade_map)
         
-        # Update Top Actuals Display (Keep strictly actuals for top metric)
-        # Calculate strict actuals total for display
-        strict_actual_val = 0.0
-        for chem, grade_map in actual_usage_map.items():
-            price = engine.get_price(mill, chem) if use_cost else 1.0
-            total_lbs = sum(grade_map.values())
-            strict_actual_val += (total_lbs * price)
-            
-        val_str = f"${strict_actual_val:,.2f}" if use_cost else f"{strict_actual_val:,.2f} Lbs"
+        val_str = f"${actual_val:,.2f}" if use_cost else f"{actual_val:,.2f} Lbs"
         actual_display.children = [val_str]
 
-        if actual_tons_total > 0:
-            act_cpt = strict_actual_val / actual_tons_total
+        # Update Actual CPT Display
+        if actual_tons > 0:
+            act_cpt = actual_val / actual_tons
         else:
             act_cpt = 0.0
         
@@ -1741,30 +1619,41 @@ def on_load_baseline(widget, event, data):
         cpt_str = f"{act_cpt:,.2f} {unit_label}"
         actual_cpt_display.children = [cpt_str]
 
-        scope_msg = f"Actuals: {dt_start_actuals.strftime('%b %d')} - {dt_end_actuals.strftime('%b %d %H:%M')}"
-        if dt_start_forecast:
-             scope_msg += f" | Forecast: {dt_start_forecast.strftime('%b %d')} - {dt_end_forecast.strftime('%b %d')}"
-        scope_display.children = [scope_msg]
+        scope_display.children = [f"Actuals: {dt_start.strftime('%b %d')} to {dt_end.strftime('%b %d %H:%M')} | Scope: All Chemicals"]
+        
+        # 2. Calculate Forecast (Bottom Section Interactive Table)
+        prediction_start = max(dt_start, now_mill_tz) if dt_start < now_mill_tz else dt_start
+        prediction_end = dt_end # Modified to prevent forcing forecast for current day (MTD)
+        
+        forecast_rows_data.clear()
 
-        # Prepare Table Headers
+        # Determine Mode: Forecast vs Actuals Only
+        is_forecast_mode = (prediction_end > prediction_start + timedelta(hours=1))
+        
+        engine.last_mode = 'Forecast' if is_forecast_mode else 'Actuals'
+        
+        # --- DYNAMIC HEADER LOGIC ---
         lbl_prefix = "Fcst" if is_forecast_mode else "Actual"
         lbl_unit = "$/T" if use_cost else "Lbs/T"
         header_label = f"{lbl_prefix} {lbl_unit}"
-        modal_title_context = "Weighted Avg" if is_forecast_mode else "Actual"
+        
+        # --- DYNAMIC TITLE CONTEXT FOR SUBTITLE & MODAL ---
+        modal_title_context = "Forecast Theoretical" if is_forecast_mode else "Actual"
         breakdown_title_text = "ACTUAL + FORECAST" if is_forecast_mode else "ACTUAL"
         
+        # Update Main Subtitle
         breakdown_title_display.children = [f"USAGE BREAKDOWN - {breakdown_title_text}"]
 
         header_row = v.Row(
-            class_='mb-2 font-weight-bold grey lighten-3 pa-2 rounded flex-nowrap',
+            class_='mb-2 font-weight-bold grey lighten-3 pa-2 rounded flex-nowrap', # Added flex-nowrap
             children=[
                 v.Col(cols=3, children=[v.Html(tag='div', children=['Chemical'])]),
                 v.Col(cols=2, class_='d-flex justify-center', children=[v.Html(tag='div', children=[header_label])]),
-                v.Col(cols=1, class_='d-flex justify-center', children=[v.Html(tag='div', children=['% Grp'])]),
+                v.Col(cols=1, class_='d-flex justify-center', children=[v.Html(tag='div', children=['% Grp'])]), # New Header
                 v.Col(cols=2, class_='d-flex justify-center', children=[v.Html(tag='div', children=[f'Budget {lbl_unit}'])]),
                 v.Col(cols=2, class_='d-flex justify-center', children=[v.Html(tag='div', children=[f'{lbl_unit} Var'])]),
                 v.Col(cols=1, class_='d-flex justify-center', children=[v.Html(tag='div', children=['% Var'])]), 
-                v.Col(cols=1, class_='d-flex justify-center', children=[v.Html(tag='div', children=['Details'])]),
+                v.Col(cols=1, class_='d-flex justify-center', children=[v.Html(tag='div', children=['Details'])]), # Reduced col size
             ]
         )
         
@@ -1772,15 +1661,85 @@ def on_load_baseline(widget, event, data):
         forecast_rows_data.clear()
         forecast_group_headers.clear()
 
-        # Render Rows
+        # Helper to process chemical data uniformly
+        all_chem_data = {} # { category: [ {chem_name, total, details} ] }
+        for cat in CATEGORY_ORDER: all_chem_data[cat] = []
+
+        if is_forecast_mode:
+            # === FORECAST MODE ===
+            # Step A: Get Grade Forecast
+            grade_tons_map = engine.generate_tonnage_forecast(mill, prediction_start, prediction_end, known_actuals=combined_actual_grades)
+            forecast_prod_tons = sum(grade_tons_map.values())
+            engine.last_forecast_tons = forecast_prod_tons
+
+            # Step B: Pivot to Chemicals
+            mill_chemicals = list(CHEMICAL_SIGNAL_IDS.get(mill, {}).keys())
+            mill_baselines = engine.baselines_data.get(mill, {})
+            
+            # Temporary storage to aggregate by chemical first
+            temp_chem_map = {c: {'total': 0.0, 'details': []} for c in mill_chemicals}
+
+            for grade, tons in grade_tons_map.items():
+                if tons <= 0: continue
+                std_grade = standardize_grade(grade)
+                for chem in mill_chemicals:
+                    rate = 0.0
+                    chem_key = next((k for k in mill_baselines.keys() if chem.lower() in k.lower() or k.lower() in chem.lower()), None)
+                    if chem_key: rate = mill_baselines[chem_key].get(std_grade, 0.0)
+                            
+            # Sort into categories
+            for chem, data in temp_chem_map.items():
+                if data['total'] > 0 or len(data['details']) > 0:
+                    cat = get_chemical_category(chem)
+                    all_chem_data[cat].append({'name': chem, 'data': data})
+                    
+            tons_basis = forecast_prod_tons
+
+        else:
+            # === ACTUALS MODE ===
+            engine.last_forecast_tons = 0.0
+            tons_basis = actual_tons
+            mill_baselines = engine.baselines_data.get(mill, {})
+            
+            for chem_name, val in actual_breakdown_dict.items():
+                if val > 0:
+                    chem_details = []
+                    if combined_actual_grades:
+                        chem_key = next((k for k in mill_baselines.keys() if chem_name.lower() in k.lower() or k.lower() in chem_name.lower()), None)
+                        
+                        for g, t in combined_actual_grades.items():
+                            if t <= 0: continue
+                            std_g = standardize_grade(g)
+                            
+                            # 1. Calculate BUDGET Rate (Baseline)
+                            # -----------------------------------
+                            baseline_rate = 0.0
+                            if chem_key: baseline_rate = mill_baselines[chem_key].get(std_g, 0.0)
+                            
+                            price = engine.get_price(mill, chem_name) if use_cost else 1.0
+                            budget_metric_per_ton = baseline_rate * price
+                            
+                            # 2. Calculate ACTUAL Rate (From Signal Usage)
+                            # --------------------------------------------
+                            # Retrieve actual Lbs usage for this grade from intersection
+                            actual_lbs_for_grade = actual_usage_by_grade.get(chem_name, {}).get(std_g, 0.0)
+                            
+                            actual_metric_per_ton = 0.0
+                            if t > 0:
+                    
+                    cat = get_chemical_category(chem_name)
+                    all_chem_data[cat].append({'name': chem_name, 'data': {'total': val, 'details': chem_details}})
+
+        # === RENDER UI BY CATEGORY ===
         for category in CATEGORY_ORDER:
             chem_list = all_chem_data.get(category, [])
             
+            # Only render category if it has items or if we want to show empty categories with budget
             budget_val = engine.get_group_budget_per_ton(mill, category)
             if not use_cost: budget_val = 0.0 
             
             if len(chem_list) > 0 or budget_val > 0:
-                # Group Header
+                # 1. Create Header
                 header_ui, header_widgets = create_group_header_row(category, budget_val, use_cost)
                 rows_views.append(header_ui)
                 forecast_group_headers[category] = header_widgets
@@ -1790,9 +1749,11 @@ def on_load_baseline(widget, event, data):
                     def on_group_rate_change(widget, event, data):
                         try:
                             new_group_total = float(widget.v_model)
+                            # Calculate current sum from children
                             current_sum = 0.0
                             valid_rows = []
                             
+                            # Find row objects for this category in forecast_rows_data
                             for r in forecast_rows_data:
                                 if r['state']['group'] == cat:
                                     try:
@@ -1803,34 +1764,34 @@ def on_load_baseline(widget, event, data):
                             
                             if current_sum > 0:
                                 ratio = new_group_total / current_sum
+                                # Distribute
                                 for r in valid_rows:
                                     old_val = float(r['w_per_ton'].v_model)
                                     new_val = old_val * ratio
                                     r['w_per_ton'].v_model = float(f"{new_val:.4f}")
+                                    # Trigger event to update state
                                     r['w_per_ton'].fire_event('change', None) 
+                                    
                         except Exception as e: print(e)
                     return on_group_rate_change
 
                 header_widgets['w_rate'].on_event('change', make_group_rate_handler(category, header_widgets, chem_list))
                 
-                # Group Budget Handler
+                # Logic to handle Group Budget Change
                 def make_group_budget_handler(cat, widgets):
                     def on_group_budget_change(widget, event, data):
-                        recalculate_totals()
+                        recalculate_totals() # Recalculate variance
                     return on_group_budget_change
 
                 header_widgets['w_budget'].on_event('change', make_group_budget_handler(category, header_widgets))
 
-                # Individual Rows
+                # 2. Create Rows
                 chem_list_len = len(chem_list) 
                 for item in chem_list:
-                    # Calculate Weighted Budget Per Ton (from Baselines)
+                    # Get Individual Budget
                     chem_budget_val = 0.0
-                    c_budget_total = item['data'].get('budget_total', 0.0)
-                    c_tons = item['data'].get('tons', 0.0)
-                    
-                    if c_tons > 0:
-                        chem_budget_val = c_budget_total / c_tons
+                    if use_cost:
+                        chem_budget_val = engine.get_budget_per_ton(mill, item['name'])
                     
                     row_obj = create_chemical_row(
                         item['name'], 
@@ -1838,9 +1799,9 @@ def on_load_baseline(widget, event, data):
                         item['data']['details'], 
                         use_cost, 
                         group_name=category, 
-                        tons_basis=total_production_tons, 
+                        tons_basis=tons_basis, 
                         context_label=modal_title_context,
-                        show_group_pct=(chem_list_len > 1),
+                        show_group_pct=(chem_list_len > 1), # Hide % if only 1 item
                         row_budget=chem_budget_val
                     )
                     forecast_rows_data.append(row_obj)
